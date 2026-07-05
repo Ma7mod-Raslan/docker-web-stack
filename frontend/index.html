@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Todos</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 16px;
+  }
+  .container { width: 100%; max-width: 520px; }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: #1e2130;
+    border: 1px solid #2d3148;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { border-color: #6366f1; }
+  input[type="text"]::placeholder { color: #475569; }
+  button.add {
+    background: #6366f1;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  button.add:hover { background: #4f46e5; }
+  .stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: #1e2130;
+    border: 1px solid #2d3148;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #64748b;
+  }
+  .stat span { display: block; font-size: 20px; font-weight: 700; color: #e2e8f0; }
+  .todo-list { display: flex; flex-direction: column; gap: 8px; }
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #1e2130;
+    border: 1px solid #2d3148;
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.15s;
+  }
+  .todo-item:hover { border-color: #3d4268; }
+  .todo-item.done { opacity: 0.5; }
+  .check {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid #2d3148;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .check:hover { border-color: #6366f1; }
+  .todo-item.done .check { background: #6366f1; border-color: #6366f1; }
+  .check-icon { display: none; }
+  .todo-item.done .check-icon { display: block; }
+  .todo-title {
+    flex: 1;
+    font-size: 14px;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  .todo-item.done .todo-title { text-decoration: line-through; color: #475569; }
+  .del {
+    background: none;
+    border: none;
+    color: #334155;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .del:hover { color: #ef4444; }
+  .empty { text-align: center; padding: 40px; color: #334155; font-size: 14px; }
+  .error { background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>To Do Task</h1>
+  <p class="subtitle">A demo app running on Docker</p>
+  <div id="error" class="error" style="display:none"></div>
+  <div class="input-row">
+    <input type="text" id="newTodo" placeholder="Add a new task..." autocomplete="off"/>
+    <button class="add" onclick="addTodo()">Add</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><span id="totalCount">0</span>Total</div>
+    <div class="stat"><span id="doneCount">0</span>Done</div>
+    <div class="stat"><span id="pendingCount">0</span>Pending</div>
+  </div>
+  <div class="todo-list" id="todoList"></div>
+</div>
+<script>
+const API = '/api';
+
+async function fetchTodos() {
+  try {
+    const res = await fetch(`${API}/todos`);
+    const todos = await res.json();
+    renderTodos(todos);
+  } catch(e) { showError('Cannot connect to backend'); }
+}
+
+function renderTodos(todos) {
+  const list = document.getElementById('todoList');
+  document.getElementById('totalCount').textContent = todos.length;
+  document.getElementById('doneCount').textContent = todos.filter(t => t.done).length;
+  document.getElementById('pendingCount').textContent = todos.filter(t => !t.done).length;
+  if (!todos.length) {
+    list.innerHTML = '<div class="empty">No tasks yet — add one above</div>';
+    return;
+  }
+  list.innerHTML = todos.map(t => `
+    <div class="todo-item ${t.done ? 'done' : ''}" id="todo-${t.id}">
+      <div class="check" onclick="toggleTodo(${t.id})">
+        <svg class="check-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="todo-title" onclick="toggleTodo(${t.id})">${escHtml(t.title)}</span>
+      <button class="del" onclick="deleteTodo(${t.id})">×</button>
+    </div>
+  `).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function addTodo() {
+  const input = document.getElementById('newTodo');
+  const title = input.value.trim();
+  if (!title) return;
+  try {
+    await fetch(`${API}/todos`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ title })
+    });
+    input.value = '';
+    fetchTodos();
+  } catch(e) { showError('Failed to add task'); }
+}
+
+async function toggleTodo(id) {
+  try {
+    await fetch(`${API}/todos/${id}`, { method: 'PUT' });
+    fetchTodos();
+  } catch(e) { showError('Failed to update task'); }
+}
+
+async function deleteTodo(id) {
+  try {
+    await fetch(`${API}/todos/${id}`, { method: 'DELETE' });
+    fetchTodos();
+  } catch(e) { showError('Failed to delete task'); }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+document.getElementById('newTodo').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTodo();
+});
+
+fetchTodos();
+</script>
+</body>
+</html>

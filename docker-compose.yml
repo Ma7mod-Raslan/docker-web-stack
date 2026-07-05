@@ -1,0 +1,23 @@
+networks:
+    frontend-net:
+        driver: bridge
+    backend-net:
+        driver: bridge
+    monitoring-net:
+        driver: bridge
+
+volumes:
+    db-data:
+    prometheus-data:
+    grafana-data:
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: todo-db
+    restart: unless-stopped
+    networks:
+      - backend-net
+    volumes:
+      - db-data:/var/lib/mysql
+      - 
