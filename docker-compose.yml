@@ -20,4 +20,4 @@ services:
       - backend-net
     volumes:
       - db-data:/var/lib/mysql
-      - 
+      
