@@ -1,9 +1,47 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
+const promClient = require('prom-client');
+
+// Collect default metrics (CPU, memory, etc.)
+promClient.collectDefaultMetrics();
+
+// Custom metrics
+const httpRequestCounter = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total HTTP requests',
+  labelNames: ['method', 'route', 'status']
+});
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'HTTP request duration',
+  labelNames: ['method', 'route', 'status']
+});
 
 const app = express();
 app.use(cors());
+
+// Middleware to track requests
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+  res.on('finish', () => {
+    httpRequestCounter.inc({
+      method: req.method,
+      route: req.path,
+      status: res.statusCode
+    });
+    end({ method: req.method, route: req.path, status: res.statusCode });
+  });
+  next();
+});
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', promClient.register.contentType);
+  res.end(await promClient.register.metrics());
+});
+
 app.use(express.json());
 
 const dbConfig = {
