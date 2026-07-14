@@ -47,6 +47,7 @@ services:
         restart: on-failure
         networks:
             - backend-net
+            - monitoring-net
         environment:
             DB_HOST: db
             DB_USER: root
@@ -146,7 +147,7 @@ services:
             resources:
                 limits:
                     cpus: '0.25'
-                    memory: 128M
+                    memory: 256M
         logging:
             driver: "none"
         
@@ -202,7 +203,7 @@ services:
             resources:
                 limits:
                     cpus: '0.5'
-                    memory: 256M
+                    memory: 512M
         logging:
             driver: "json-file"
             options:
